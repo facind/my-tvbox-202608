@@ -411,13 +411,15 @@ def _fetch_remote_config(url):
     return None
 
 
-def _expand_warehouse(url, name, seen, sites_out, depth=0):
+def _expand_warehouse(url, name, seen, sites_out, depth=0, parse_acc=None, spider_ref=None):
     """
     递归展开一个"多仓链接"：
       - 若该 url 返回含 sites 的标准配置 -> 直接把 sites 展平加入；
       - 若返回含 urls/storeHouse 的多仓清单 -> 遍历其每个子 url 递归（depth 限 1 层，防失控）；
       - 拉取失败 / 非 JSON -> 返回 False，由调用方保留入口条目本身。
     seen: 已加入的 site key 集合（去重）。
+    parse_acc: 可选 list，用于收集各子仓的 parses（合并进最终配置，避免 parses:[]）。
+    spider_ref: 可选 dict{'v':...}，用于回传第一个可用的 spider。
     """
     cfg = _fetch_remote_config(url)
     if not cfg:
@@ -429,7 +431,8 @@ def _expand_warehouse(url, name, seen, sites_out, depth=0):
         for s in cfg["sites"]:
             if not isinstance(s, dict):
                 continue
-            key = s.get("key") or s.get("api") or s.get("name")
+            api = s.get("api", "")
+            key = s.get("key") or api or s.get("name")
             if not key:
                 continue
             key = _safe_key(key)
@@ -440,10 +443,23 @@ def _expand_warehouse(url, name, seen, sites_out, depth=0):
                 key = f"{base_key}_{n}"
                 n += 1
             seen.add(key)
+            # 规范化：补全 TVBox 标准字段，确保客户端能正常搜索/筛选
             site = dict(s)
+            site.setdefault("type", 3)
+            site.setdefault("searchable", 1)
+            site.setdefault("quickSearch", 1)
+            site.setdefault("filterable", 1)
+            # 若 api 是 csp_ 内置爬虫标识，保持原样（TVBox 合法写法），但需有 spider 兜底
             site["key"] = key
             sites_out.append(site)
             added += 1
+        # 顺带收集该子仓的 parses / spider（避免最终配置 parses:[]、spider:"" 导致 csp_ 站点全死）
+        if isinstance(parse_acc, list):
+            for p in cfg.get("parses", []) or []:
+                if isinstance(p, dict) and p.get("url"):
+                    parse_acc.append(dict(p))
+        if isinstance(spider_ref, dict) and not spider_ref.get("v"):
+            spider_ref["v"] = cfg.get("spider") or ""
         log.info("     ↳ 展开 [%s] 获得 %d 个站点", name, added)
         return True
 
@@ -453,10 +469,46 @@ def _expand_warehouse(url, name, seen, sites_out, depth=0):
         ok_any = False
         for u in sub_list:
             sub_url = u.get("url") if isinstance(u, dict) else u
-            sub_name = u.get("name", sub_url) if isinstance(u, dict) else sub_url
+            sub_name = (u.get("name", sub_url) if isinstance(u, dict) else sub_url) or sub_url
             if not sub_url:
                 continue
-            if _expand_warehouse(sub_url, sub_name, seen, sites_out, depth + 1):
+            # 若子项本身是完整的 site dict（已含 api/type 等），直接加入，不再二次探测
+            if isinstance(u, dict) and ("api" in u or "type" in u or "url" in u):
+                key = _safe_key(u.get("key") or sub_name or sub_url)
+                base_key = key
+                n = 1
+                while key in seen:
+                    key = f"{base_key}_{n}"
+                    n += 1
+                seen.add(key)
+                site = dict(u)
+                # 统一字段名：TVBox 站点标准是 api，部分配置写 url，此处归一
+                if not site.get("api") and site.get("url"):
+                    site["api"] = site["url"]
+                site.setdefault("type", 3)
+                site.setdefault("searchable", 1)
+                site.setdefault("quickSearch", 1)
+                site.setdefault("filterable", 1)
+                site["key"] = key
+                sites_out.append(site)
+                ok_any = True
+                continue
+            # 否则尝试把它当作"配置文件"再递归一层；若只是普通接口（拉不到配置），作为 site 保留
+            if _expand_warehouse(sub_url, sub_name, seen, sites_out, depth + 1,
+                                 parse_acc=parse_acc, spider_ref=spider_ref):
+                ok_any = True
+            else:
+                key = _safe_key(sub_name or sub_url)
+                base_key = key
+                n = 1
+                while key in seen:
+                    key = f"{base_key}_{n}"
+                    n += 1
+                seen.add(key)
+                sites_out.append({
+                    "key": key, "name": sub_name, "type": 3,
+                    "api": sub_url, "searchable": 1, "quickSearch": 1, "filterable": 1,
+                })
                 ok_any = True
         if ok_any:
             return True
@@ -466,53 +518,91 @@ def _expand_warehouse(url, name, seen, sites_out, depth=0):
 def _line_to_sites(line, idx, seen, sites_out, parses_out, spider_holder):
     """
     把一个 line 条目（valid 或 nav）展成一条/多条 site，加入 sites_out。
-      - 主链 url 作为主 site；
-      - urlv 里每条备用链也各成一条（key 加 _v1/_v2 区分）；
-      - 若 url 本身是多仓链接且能递归展开 -> 展开后并入 sites_out，
-        同时保留主入口 site 指向该多仓 url，保证"一个不丢"。
-    不剔除任何条目：拉不到/非 JSON 的也保留为 site 条目。
+
+    【方案 A：保证每个 site.api 都是"能直接返回数据的接口"】
+      - 先用该 url 尝试递归展开（它若是多仓/单仓配置文件，则把内部真实站点展平并入 sites）；
+      - 展开成功 -> 这些内部站点才是真接口，主链/备用链「不再」作为 site 添加
+        （因为它们指向的是"配置文件 URL"，TVBox 拿它当搜索接口请求只会得到配置 JSON，
+          表现为首页/搜索空白——这就是假性导入的根因）；
+      - 展开失败（拉不到 / 非 JSON / 非 TVBox 配置）-> 才保留入口条目本身，
+        保证"一个不丢"（这种本来就用不了，留壳不影响整体）。
+      - 备用链 urlv：仅当它与主链「展开状态不一致」时才处理——若主链已展开成功，
+        备用链也作为"可能是单仓接口"尝试展开；都失败时各自保留入口。
     """
     name = line["name"]
     main_url = line["url"]
     backups = line.get("urlv") or []
 
-    # 先尝试当作"多仓链接"递归展开（展开成功则内部站点全部并入）
-    expanded = False
+    # parse_acc / spider_ref 由调用方（build_index）透传，用于汇总子仓的 parses 与 spider
+    parse_acc = line.get("__parse_acc") if isinstance(line, dict) else None
+    spider_ref = line.get("__spider_ref") if isinstance(line, dict) else None
+
+    # 1) 先尝试把主链当作"配置文件"递归展开
+    main_expanded = False
     if main_url:
-        # 用一个临时 list 试探，避免展开失败污染 seen
         tmp_seen = set(seen)
         tmp_sites = []
-        if _expand_warehouse(main_url, name, tmp_seen, tmp_sites, depth=0):
+        if _expand_warehouse(main_url, name, tmp_seen, tmp_sites, depth=0,
+                             parse_acc=parse_acc, spider_ref=spider_ref):
             seen.update(tmp_seen)
             sites_out.extend(tmp_sites)
-            expanded = True
+            main_expanded = True
 
-    # 组装主链 + 备用链条目（即使展开了也保留入口，确保不丢）
-    all_api = [(main_url, "")] + [(u, f"_v{i+1}") for i, u in enumerate(backups) if u and u != main_url]
-    for api_url, suffix in all_api:
-        if not api_url:
-            continue
-        base_key = _safe_key(name)
-        key = f"{base_key}{suffix}"
-        n = 1
-        while key in seen:
-            key = f"{base_key}{suffix}_{n}"
-            n += 1
-        seen.add(key)
-        site = {
-            "key": key,
-            "name": name if not suffix else f"{name}（备用{suffix.strip('_v')}）",
-            "type": 3,
-            "api": api_url,
-            "searchable": 1,
-            "quickSearch": 1,
-            "filterable": 1,
-        }
-        sites_out.append(site)
+    # 2) 决定是否需要"保留入口条目"
+    #    只有「展开失败」时才把主链/备用链本身当 site；展开成功的全部跳过。
+    if not main_expanded:
+        # 主链：展开失败 -> 保留入口
+        _add_entry_site(name, "", main_url, seen, sites_out)
+        # 备用链：各自再尝试展开；展开失败也保留入口
+        for i, u in enumerate(backups, 1):
+            if not u or u == main_url:
+                continue
+            tmp_seen = set(seen)
+            tmp_sites = []
+            if _expand_warehouse(u, f"{name}（备用{i}）", tmp_seen, tmp_sites, depth=0,
+                                 parse_acc=parse_acc, spider_ref=spider_ref):
+                seen.update(tmp_seen)
+                sites_out.extend(tmp_sites)
+            else:
+                _add_entry_site(name, f"_v{i}", u, seen, sites_out)
+    else:
+        # 主链展开成功 -> 内部站点已并入；备用链同样尝试展开，失败则不保留
+        # （主链已能用，备用链只是冗余入口，避免再塞一个无效的配置文件 URL）
+        for i, u in enumerate(backups, 1):
+            if not u or u == main_url:
+                continue
+            tmp_seen = set(seen)
+            tmp_sites = []
+            if _expand_warehouse(u, f"{name}（备用{i}）", tmp_seen, tmp_sites, depth=0,
+                                 parse_acc=parse_acc, spider_ref=spider_ref):
+                seen.update(tmp_seen)
+                sites_out.extend(tmp_sites)
 
     # 若该 line 自带 parses（来自 line 自身配置），收集（不去重，全保留）
     if isinstance(line.get("parses"), list):
         parses_out.extend(line["parses"])
+
+
+def _add_entry_site(name, suffix, api_url, seen, sites_out):
+    """展开失败时的兜底：保留一条入口 site（api 即原始链接，能播与否由客户端决定）"""
+    if not api_url:
+        return
+    base_key = _safe_key(name)
+    key = f"{base_key}{suffix}"
+    n = 1
+    while key in seen:
+        key = f"{base_key}{suffix}_{n}"
+        n += 1
+    seen.add(key)
+    sites_out.append({
+        "key": key,
+        "name": name if not suffix else f"{name}（备用{suffix.strip('_v')}）",
+        "type": 3,
+        "api": api_url,
+        "searchable": 1,
+        "quickSearch": 1,
+        "filterable": 1,
+    })
 
 
 def build_index(valid_lines, nav_lines, warehouses, lives, normalized_search, dead_lines=None):
@@ -532,13 +622,22 @@ def build_index(valid_lines, nav_lines, warehouses, lives, normalized_search, de
     spider = ""
     seen = set()
 
+    # 汇总各子仓 parses / spider 的收集器（透传给所有展开调用）
+    parse_acc = []
+    spider_ref = {"v": ""}
+
     # 1) 处理 lines（valid + nav + dead 全部展平，一个不剔除）
     all_lines = valid_lines + nav_lines + (dead_lines or [])
     all_lines.sort(key=lambda x: x.get("priority", 9))
     for idx, line in enumerate(all_lines, 1):
+        # 透传收集器，让展开子仓时能把 parses / spider 汇总回来
+        line = dict(line)
+        line["__parse_acc"] = parse_acc
+        line["__spider_ref"] = spider_ref
         _line_to_sites(line, idx, seen, sites, parses, None)
 
     # 2) 处理多仓 warehouses：当作"多仓链接"尝试递归展开内部 sites
+    #    【方案 A】展开成功 -> 只保留内部真实站点，不把配置文件 URL 当 site
     for wh in warehouses:
         name = wh.get("name", "多仓")
         main_url = wh.get("url")
@@ -547,31 +646,25 @@ def build_index(valid_lines, nav_lines, warehouses, lives, normalized_search, de
         tmp_seen = set(seen)
         tmp_sites = []
         expanded = False
-        if main_url and _expand_warehouse(main_url, name, tmp_seen, tmp_sites, depth=0):
+        if main_url and _expand_warehouse(main_url, name, tmp_seen, tmp_sites, depth=0,
+                                          parse_acc=parse_acc, spider_ref=spider_ref):
             seen.update(tmp_seen)
             sites.extend(tmp_sites)
             expanded = True
-        # 备用链/入口也保留
-        all_api = [(main_url, "")] + [(u, f"_v{i+1}") for i, u in enumerate(backups) if u and u != main_url]
-        for api_url, suffix in all_api:
-            if not api_url:
-                continue
-            base_key = _safe_key(name)
-            key = f"{base_key}{suffix}"
-            n = 1
-            while key in seen:
-                key = f"{base_key}{suffix}_{n}"
-                n += 1
-            seen.add(key)
-            sites.append({
-                "key": key,
-                "name": name if not suffix else f"{name}（备用{suffix.strip('_v')}）",
-                "type": 3,
-                "api": api_url,
-                "searchable": 1,
-                "quickSearch": 1,
-                "filterable": 1,
-            })
+        # 仅「展开失败」时才保留入口条目，保证不丢
+        if not expanded:
+            _add_entry_site(name, "", main_url, seen, sites)
+            for i, u in enumerate(backups, 1):
+                if not u or u == main_url:
+                    continue
+                tmp_seen = set(seen)
+                tmp_sites = []
+                if _expand_warehouse(u, f"{name}（备用{i}）", tmp_seen, tmp_sites, depth=0,
+                                     parse_acc=parse_acc, spider_ref=spider_ref):
+                    seen.update(tmp_seen)
+                    sites.extend(tmp_sites)
+                else:
+                    _add_entry_site(name, f"_v{i}", u, seen, sites)
 
     # 3) 若启用公开站点吸收，把规范化后的搜索站点并入 sites 末尾
     for s in normalized_search:
@@ -581,11 +674,22 @@ def build_index(valid_lines, nav_lines, warehouses, lives, normalized_search, de
         seen.add(key)
         sites.append(dict(s))
 
-    # 4) 组装最终标准配置
+    # 4) 汇总 parses：line 自带的 + 各子仓展开收集到的，按 url 去重
+    final_parses = list(parses)
+    seen_parse_urls = {p.get("url") for p in final_parses if isinstance(p, dict)}
+    for p in parse_acc or []:
+        if p.get("url") and p["url"] not in seen_parse_urls:
+            seen_parse_urls.add(p["url"])
+            final_parses.append(p)
+
+    # 5) spider 兜底：优先用子仓带回的，否则保持 ""
+    final_spider = spider_ref.get("v") or spider
+
+    # 6) 组装最终标准配置
     cfg = {
         "sites": sites,
-        "parses": parses,
-        "spider": spider,
+        "parses": final_parses,
+        "spider": final_spider,
         "lives": [{"name": lv["name"], "type": 1, "url": lv["url"]} for lv in lives],
         "ext": {
             "version": "2.0",
