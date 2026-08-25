@@ -6,183 +6,58 @@ name: 影视仓聚合片源 · 自动更新与部署
 #   2) 推送/PR 到 main 立即构建（验证用）
 #   3) 手动触发 (workflow_dispatch)
 # =========================================================
+name: Deploy
+
 on:
   schedule:
-    - cron: "0 6 */3 * *"   # 每3天 06:00 UTC
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+    - cron: "0 6 */3 * *"
   workflow_dispatch:
+  push:
+    branches: [ main, master ]
 
 permissions:
-  contents: read       # 读取仓库
-  pages: write         # 部署 Pages
-  id-token: write      # OIDC 鉴权
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  # ================== Job1: 生成配置 + 构建 spider.jar ==================
   build:
     runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.gen.outputs.changed }}
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - name: 设置 JDK (GraalVM，支持 JS 规则)
-        uses: graalvm/setup-graalvm@v1
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          java-version: "21"
-          distribution: graalvm-community
-          components: "js"          # 启用 GraalJS 引擎
-          cache: gradle
+          python: '3.11'
 
-      - name: 设置 Python
-        uses: actions/setup-python@v5
+      - name: Install dependencies
+        run: pip install pyyaml requests
+
+      - name: Generate index & lines
+        run: python3 scripts/generate.py
+        env:
+          ALIYUN_REFRESH_TOKEN: ${{ secrets.ALIYUN_REFRESH_TOKEN }}
+          BAIDU_COOKIE: ${{ secrets.BAIDU_COOKIE }}
+          QUARK_COOKIE: ${{ secrets.QUARK_COOKIE }}
+          UC_COOKIE: ${{ secrets.UC_COOKIE }}
+
+      - name: Validate output
+        run: python3 scripts/validate.py
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
         with:
-          python-version: "3.11"
-          cache: pip
+          path: .
 
-      - name: 设置 Node.js（跑 JS 规则单测）
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: 安装 Python 依赖
-        run: pip install requests pyyaml || true
-
-      - name: 注入网盘配置（从 Secrets，扫码登录可留空走扫码）
-        # Secret 名与「发布教程 / README」完全一致：
-        #   ALIYUN_REFRESH_TOKEN / BAIDU_COOKIE / QUARK_COOKIE / UC_COOKIE
-        run: |
-          mkdir -p jar
-          cat > jar/config.json <<EOF
-          {
-            "aliyun": { "refresh_token": "${{ secrets.ALIYUN_REFRESH_TOKEN || '' }}" },
-            "baidu":  { "cookie":        "${{ secrets.BAIDU_COOKIE         || '' }}" },
-            "quark":  { "cookie":        "${{ secrets.QUARK_COOKIE         || '' }}" },
-            "uc":     { "cookie":        "${{ secrets.UC_COOKIE            || '' }}" }
-          }
-          EOF
-          echo "网盘配置已注入（空值=走扫码兜底）"
-
-      - name: 构建 spider.jar
-        run: |
-          cd jar
-          ./build.sh || {
-            echo "⚠️ GraalVM 构建未产出 spider.jar，回退占位文件"
-            [[ -f spider.jar ]] || {
-              echo "占位 jar（CI 会在有 JDK 环境重新编译）" > README-placeholder.txt
-              zip -q spider.jar README-placeholder.txt 2>/dev/null || true
-            }
-          }
-          ls -lh spider.jar || echo "无 jar，跳过"
-
-      - name: 验证 JS 规则逻辑
-        run: |
-          cd jar
-          [[ -f test_spider.js ]] && node test_spider.js || echo "跳过 JS 测试"
-
-      - name: 单元测试（ingest 吸收 / search_sites 规范化）
-        run: |
-          cd scripts
-          python3 test_ingest.py
-
-      - name: 生成聚合配置（健康检查 + 去重 + 分级）
-        id: gen
-        run: |
-          cd scripts
-          python3 generate.py || python3 generate_lite.py
-          echo "changed=true" >> $GITHUB_OUTPUT
-
-      - name: 校验产物结构
-        run: python3 scripts/validate.py || true
-
-      - name: 打包产物（供部署 Job 使用）
-        uses: actions/upload-artifact@v4
-        with:
-          name: yingshicang-dist
-          path: |
-            index.json
-            lines/
-            jar/spider.jar
-            jar/config.json
-            jar/lib/
-          retention-days: 30
-
-  # ================== Job2: 部署到 GitHub Pages ==================
   deploy:
     needs: build
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: 下载构建产物
-        uses: actions/download-artifact@v4
-        with:
-          name: yingshicang-dist
-
-      - name: 准备 Pages 站点
-        run: |
-          mkdir -p _site
-          cp index.json _site/ 2>/dev/null || true
-          cp -r lines _site/ 2>/dev/null || true
-          mkdir -p _site/jar
-          cp jar/spider.jar _site/jar/ 2>/dev/null || true
-          cp jar/config.json _site/jar/ 2>/dev/null || true
-          cp -r jar/lib _site/jar/ 2>/dev/null || true
-          # 可直接填写的配置地址说明
-          cat > _site/README.txt <<EOF
-          影视仓配置地址：<本仓库 Pages URL>/index.json
-          示例：https://<用户名>.github.io/<仓库名>/index.json
-          EOF
-          ls -R _site | head -50
-
-      - name: 配置 GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: 上传 Pages 产物
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: 部署到 GitHub Pages
+      - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
-
-  # ================== Job3: 提交更新后的配置（可选）==================
-  commit:
-    needs: [build, deploy]
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write       # 需要写权限以回写 index.json
-    steps:
-      - name: 检出（带写权限）
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 下载最新产物
-        uses: actions/download-artifact@v4
-        with:
-          name: yingshicang-dist
-
-      - name: 提交更新的 index.json / lines/ （若变化）
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.json lines/ backup/ 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "无变更，跳过提交"
-          else
-            git commit -m "chore: 自动更新聚合片源 [skip ci]"
-            git push
-          fi
+        uses: actions/deploy-pages@v2
