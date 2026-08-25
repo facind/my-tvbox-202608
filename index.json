@@ -1,66 +1,10 @@
 {
   "urls": [
     {
-      "name": "饭太硬（主）",
-      "url": "http://www.fantaiyi.com/tv",
-      "urlv": [
-        "http://www.fantaiyi.com/tv"
-      ]
-    },
-    {
-      "name": "肥猫（主）",
-      "url": "http://feicat.com/",
-      "urlv": [
-        "http://feicat.com/"
-      ]
-    },
-    {
       "name": "摸鱼4K（主）",
       "url": "http://我不是.摸鱼儿.top",
       "urlv": [
         "http://我不是.摸鱼儿.top"
-      ]
-    },
-    {
-      "name": "俊佬（主）",
-      "url": "http://home.jundie.top:81/top98.json",
-      "urlv": [
-        "http://home.jundie.top:81/top98.json"
-      ]
-    },
-    {
-      "name": "巧儿（主）",
-      "url": "http://pandown.pro/tvbox/tvbox.json",
-      "urlv": [
-        "http://pandown.pro/tvbox/tvbox.json"
-      ]
-    },
-    {
-      "name": "王二小（主）",
-      "url": "http://tvbox.王二小放牛娃.top",
-      "urlv": [
-        "http://tvbox.王二小放牛娃.top"
-      ]
-    },
-    {
-      "name": "南风（主）",
-      "url": "https://agit.ai/Yoursmile7/TVBox/raw/branch/master/XC.json",
-      "urlv": [
-        "https://agit.ai/Yoursmile7/TVBox/raw/branch/master/XC.json"
-      ]
-    },
-    {
-      "name": "菜妮丝（主）",
-      "url": "https://tvbox.cainisi.cf",
-      "urlv": [
-        "https://tvbox.cainisi.cf"
-      ]
-    },
-    {
-      "name": "OK（主）",
-      "url": "http://ok321.top/tv",
-      "urlv": [
-        "http://ok321.top/tv"
       ]
     },
     {
@@ -71,52 +15,24 @@
       ]
     },
     {
-      "name": "星辰（主）",
-      "url": "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/xc.json",
+      "name": "饭太硬（主）",
+      "url": "http://fty.888484.xyz/",
       "urlv": [
-        "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/xc.json"
+        "http://fty.888484.xyz/"
       ]
     },
     {
-      "name": "瓜皮（主）",
-      "url": "http://www.guapi.com/tvbox.json",
+      "name": "饭太硬（主）",
+      "url": "http://fty.888484.xyz/tv",
       "urlv": [
-        "http://www.guapi.com/tvbox.json"
+        "http://fty.888484.xyz/tv"
       ]
     },
     {
-      "name": "枫林（主）",
-      "url": "https://fenlin.kehou.com/tv.json",
+      "name": "王二小（主）",
+      "url": "http://tvbox.王二小放牛娃.top",
       "urlv": [
-        "https://fenlin.kehou.com/tv.json"
-      ]
-    },
-    {
-      "name": "嗯哩嗯哩（主）",
-      "url": "http://enlienli.com/api/v1/video/list",
-      "urlv": [
-        "http://enlienli.com/api/v1/video/list"
-      ]
-    },
-    {
-      "name": "蓝鲸（主）",
-      "url": "https://lanjing.tvbox.app/blue.json",
-      "urlv": [
-        "https://lanjing.tvbox.app/blue.json"
-      ]
-    },
-    {
-      "name": "微风（备）",
-      "url": "https://weifeng.kehou.com/wf.json",
-      "urlv": [
-        "https://weifeng.kehou.com/wf.json"
-      ]
-    },
-    {
-      "name": "极光（备）",
-      "url": "http://jg.tvbox666.com/tv.json",
-      "urlv": [
-        "http://jg.tvbox666.com/tv.json"
+        "http://tvbox.王二小放牛娃.top"
       ]
     },
     {
@@ -124,13 +40,6 @@
       "url": "https://6800.kstore.vip/fish.json",
       "urlv": [
         "https://6800.kstore.vip/fish.json"
-      ]
-    },
-    {
-      "name": "道长（备）",
-      "url": "https://pastebin.com/raw/5NHaxyGR",
-      "urlv": [
-        "https://pastebin.com/raw/5NHaxyGR"
       ]
     },
     {
@@ -195,7 +104,7 @@
   ],
   "ext": {
     "version": "1.0",
-    "updated": "2026-08-25T05:18:00Z",
+    "updated": "2026-08-25T08:41:05Z",
     "description": "自建影视仓聚合片源，多仓+自动健康巡检，防止单点失效"
   }
 }
