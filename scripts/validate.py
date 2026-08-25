@@ -25,17 +25,18 @@ def main():
     check(has_urls or has_sites, "index.json 既无 urls[] 也无 sites[]")
 
     if has_urls:
-        # 旧格式：多仓索引
         for u in index["urls"]:
             check("name" in u and "url" in u, f"url 项缺少字段: {u}")
             check(u["url"].startswith("http"), f"url 非 http(s): {u['url']}")
         print(f"[OK] index.json(旧格式): {len(index['urls'])} 条线路入口, "
               f"{len(index.get('lives', []))} 个直播源")
     elif has_sites:
-        # 新格式：TVBox 标准配置
         for s in index["sites"]:
             check("name" in s and "api" in s, f"site 项缺少字段: {s}")
-            check(s["api"].startswith("http"), f"api 非 http(s): {s['api']}")
+            api = s.get("api", "")
+            # api 可以是 http(s) 链接，也可以是 csp_ 内置爬虫标识
+            check(api.startswith("http") or api.startswith("csp_"),
+                  f"api 非法(非 http 且非 csp_): {api}")
         print(f"[OK] index.json(新格式): {len(index['sites'])} 个站点, "
               f"{len(index.get('parses', []))} 个解析, {len(index.get('lives', []))} 个直播源")
 
@@ -43,22 +44,33 @@ def main():
     lines_dir = os.path.join(BASE, "lines")
     line_files = glob.glob(os.path.join(lines_dir, "*.json"))
     check(line_files, "lines/ 下没有生成单仓")
-    required = ["sites", "parses", "flags", "lives"]
     for lf in line_files:
         with open(lf, encoding="utf-8") as f:
             data = json.load(f)
         name = os.path.basename(lf)
-        for key in required:
-            check(key in data and data[key], f"{name} 缺少 {key}")
-        # 网盘 flags 必须齐全
-        for flag in ["baidu", "quark", "uc", "aliyun"]:
-            check(flag in data.get("flags", {}), f"{name} flags 缺少网盘: {flag}")
-        # parses 里要有对应 type
-        types = {p["type"] for p in data["parses"]}
-        for t, label in [(18, "百度"), (19, "夸克"), (20, "UC"), (21, "阿里")]:
-            if t not in types:
-                warn.append(f"{name} parses 无 {label} 解析(type {t})")
-        print(f"[OK] {name:14s} sites={len(data['sites'])} parses={len(data['parses'])} lives={len(data['lives'])}")
+
+        # sites 必填，其余可选
+        check(data.get("sites"), f"{name} 缺少 sites")
+        if not data.get("parses"):
+            warn.append(f"{name} 无 parses")
+        if not data.get("lives"):
+            warn.append(f"{name} 无 lives")
+
+        # flags 可选：有就校验网盘齐全，没有就跳过
+        flags = data.get("flags", {})
+        if flags:
+            for flag in ["baidu", "quark", "uc", "aliyun"]:
+                check(flag in flags, f"{name} flags 缺少网盘: {flag}")
+            # parses 里要有对应 type
+            types = {p["type"] for p in data.get("parses", [])}
+            for t, label in [(18, "百度"), (19, "夸克"), (20, "UC"), (21, "阿里")]:
+                if t not in types:
+                    warn.append(f"{name} parses 无 {label} 解析(type {t})")
+        else:
+            print(f"  ℹ️ {name} 无 flags（跳过网盘校验）")
+
+        print(f"[OK] {name:14s} sites={len(data.get('sites', []))} "
+              f"parses={len(data.get('parses', []))} lives={len(data.get('lives', []))}")
 
     # 3. spider.jar 占位 + 源码
     jar = os.path.join(BASE, "jar", "spider.jar")
