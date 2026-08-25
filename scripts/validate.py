@@ -14,16 +14,30 @@ def check(cond, msg):
 
 
 def main():
-    # 1. index.json
+    # 1. index.json —— 兼容 旧格式{urls:[]} 和 新格式{sites:[]}
     idx_path = os.path.join(BASE, "index.json")
     check(os.path.exists(idx_path), "index.json 不存在")
     with open(idx_path, encoding="utf-8") as f:
         index = json.load(f)
-    check(isinstance(index.get("urls"), list) and index["urls"], "index.json urls[] 为空或缺失")
-    for u in index["urls"]:
-        check("name" in u and "url" in u, f"url 项缺少字段: {u}")
-        check(u["url"].startswith("http"), f"url 非 http(s): {u['url']}")
-    print(f"[OK] index.json: {len(index['urls'])} 条线路入口, {len(index.get('lives', []))} 个直播源")
+
+    has_urls = isinstance(index.get("urls"), list) and index["urls"]
+    has_sites = isinstance(index.get("sites"), list) and index["sites"]
+    check(has_urls or has_sites, "index.json 既无 urls[] 也无 sites[]")
+
+    if has_urls:
+        # 旧格式：多仓索引
+        for u in index["urls"]:
+            check("name" in u and "url" in u, f"url 项缺少字段: {u}")
+            check(u["url"].startswith("http"), f"url 非 http(s): {u['url']}")
+        print(f"[OK] index.json(旧格式): {len(index['urls'])} 条线路入口, "
+              f"{len(index.get('lives', []))} 个直播源")
+    elif has_sites:
+        # 新格式：TVBox 标准配置
+        for s in index["sites"]:
+            check("name" in s and "api" in s, f"site 项缺少字段: {s}")
+            check(s["api"].startswith("http"), f"api 非 http(s): {s['api']}")
+        print(f"[OK] index.json(新格式): {len(index['sites'])} 个站点, "
+              f"{len(index.get('parses', []))} 个解析, {len(index.get('lives', []))} 个直播源")
 
     # 2. 每个单仓 line
     lines_dir = os.path.join(BASE, "lines")
@@ -62,7 +76,7 @@ def main():
         for e in errors:
             print(f"   - {e}")
         sys.exit(1)
-    print(f"✅ 全部校验通过（{len(line_files)} 个单仓 + 1 个多仓）")
+    print(f"✅ 全部校验通过（{len(line_files)} 个单仓）")
 
 
 if __name__ == "__main__":
