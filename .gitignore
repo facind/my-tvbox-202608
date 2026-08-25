@@ -1,0 +1,33 @@
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 缓存与临时
+__pycache__/
+*.pyc
+*.pyo
+cache/
+*.log
+.idea/
+.vscode/
+
+# 构建产物（CI 会重新生成，无需入库）
+jar/spider.jar
+jar/build/
+jar/*.class
+!jar/.gitkeep
+
+# 敏感/本地配置（切勿上传真实 token）
+*.local.env
+*.local.yaml
+config.local.env
+*.cookie
+secrets/
+
+# 测试临时文件
+test_*.json
+tmp/
+
+# 大文件警告：spider.jar 若 >100MB 需用 Git LFS
+# 当前为占位文件，正常大小，无需 LFS

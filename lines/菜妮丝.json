@@ -1,0 +1,155 @@
+{
+  "key": "self_08",
+  "name": "自建·菜妮丝",
+  "type": 1,
+  "api": "https://tvbox.cainisi.cf",
+  "jar": "jar/spider.jar",
+  "spider": "spider.Main",
+  "sites": [
+    {
+      "key": "line08",
+      "name": "菜妮丝",
+      "type": 1,
+      "api": "https://tvbox.cainisi.cf",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    },
+    {
+      "key": "search_collect",
+      "name": "全网采集",
+      "type": 3,
+      "api": "https://api.example.com/collect",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "jar": "spider.jar",
+      "spider": "spider.collect.Concat"
+    }
+  ],
+  "parses": [
+    {
+      "name": "百度网盘",
+      "type": 18,
+      "url": "https://www.imooc.com/api/lib/player?url=",
+      "ext": {
+        "flag": "baidu"
+      }
+    },
+    {
+      "name": "夸克网盘",
+      "type": 19,
+      "url": "https://www.imooc.com/api/lib/player?url=",
+      "ext": {
+        "flag": "quark"
+      }
+    },
+    {
+      "name": "UC网盘",
+      "type": 20,
+      "url": "https://www.imooc.com/api/lib/player?url=",
+      "ext": {
+        "flag": "uc"
+      }
+    },
+    {
+      "name": "阿里云盘",
+      "type": 21,
+      "url": "https://www.imooc.com/api/lib/player?url=",
+      "ext": {
+        "flag": "aliyun"
+      }
+    },
+    {
+      "name": "万能解析",
+      "type": 24,
+      "url": "https://www.imooc.com/api/lib/player?url=",
+      "ext": {
+        "flag": "universal"
+      }
+    },
+    {
+      "name": "自建解析",
+      "type": 1,
+      "url": "https://your-parse.example.com/?url=",
+      "ext": {}
+    }
+  ],
+  "rules": {
+    "hosts": [],
+    "sites": [
+      {
+        "name": ".*",
+        "host": [
+          "https://tvbox.cainisi.cf"
+        ]
+      }
+    ],
+    "parsers": [
+      {
+        "name": ".*",
+        "host": [
+          "https://your-parse.example.com"
+        ]
+      }
+    ]
+  },
+  "lives": [
+    {
+      "name": "运输车直播",
+      "type": 1,
+      "url": "https://cf.weixine.net/api.json",
+      "jar": "jar/spider.jar",
+      "spider": "spider.Live"
+    },
+    {
+      "name": "天微直播",
+      "type": 1,
+      "url": "http://tvkj.top/tvlive.txt",
+      "jar": "jar/spider.jar",
+      "spider": "spider.Live"
+    },
+    {
+      "name": "妖火直播",
+      "type": 1,
+      "url": "https://raw.gitmirror.com/XiaoZhang5656/xiaozhang-5656.github.io/main/iptv-live.txt",
+      "jar": "jar/spider.jar",
+      "spider": "spider.Live"
+    }
+  ],
+  "flags": {
+    "baidu": {
+      "type": 18,
+      "url": "https://your-parse.example.com/?url=",
+      "ext": {
+        "flag": "baidu"
+      }
+    },
+    "quark": {
+      "type": 19,
+      "url": "https://your-parse.example.com/?url=",
+      "ext": {
+        "flag": "quark"
+      }
+    },
+    "uc": {
+      "type": 20,
+      "url": "https://your-parse.example.com/?url=",
+      "ext": {
+        "flag": "uc"
+      }
+    },
+    "aliyun": {
+      "type": 21,
+      "url": "https://your-parse.example.com/?url=",
+      "ext": {
+        "flag": "aliyun"
+      }
+    }
+  },
+  "ext": {
+    "version": "1.0",
+    "updated": "2026-08-25T02:45:15Z",
+    "source": "self-hosted"
+  }
+}

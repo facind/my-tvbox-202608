@@ -1,0 +1,138 @@
+{
+  "urls": [
+    {
+      "name": "饭太硬（主）",
+      "url": "http://www.饭太硬.com/tv",
+      "urlv": [
+        "http://www.饭太硬.com/tv"
+      ]
+    },
+    {
+      "name": "肥猫（主）",
+      "url": "http://肥猫.com/",
+      "urlv": [
+        "http://肥猫.com/"
+      ]
+    },
+    {
+      "name": "摸鱼4K（主）",
+      "url": "http://我不是.摸鱼儿.top",
+      "urlv": [
+        "http://我不是.摸鱼儿.top"
+      ]
+    },
+    {
+      "name": "俊佬（主）",
+      "url": "http://home.jundie.top:81/top98.json",
+      "urlv": [
+        "http://home.jundie.top:81/top98.json"
+      ]
+    },
+    {
+      "name": "巧儿（主）",
+      "url": "http://pandown.pro/tvbox/tvbox.json",
+      "urlv": [
+        "http://pandown.pro/tvbox/tvbox.json"
+      ]
+    },
+    {
+      "name": "王二小（主）",
+      "url": "http://tvbox.王二小放牛娃.top",
+      "urlv": [
+        "http://tvbox.王二小放牛娃.top"
+      ]
+    },
+    {
+      "name": "南风（主）",
+      "url": "https://agit.ai/Yoursmile7/TVBox/raw/branch/master/XC.json",
+      "urlv": [
+        "https://agit.ai/Yoursmile7/TVBox/raw/branch/master/XC.json"
+      ]
+    },
+    {
+      "name": "菜妮丝（主）",
+      "url": "https://tvbox.cainisi.cf",
+      "urlv": [
+        "https://tvbox.cainisi.cf"
+      ]
+    },
+    {
+      "name": "OK（主）",
+      "url": "http://ok321.top/tv",
+      "urlv": [
+        "http://ok321.top/tv"
+      ]
+    },
+    {
+      "name": "小盒子4K（主）",
+      "url": "http://xhztv.top/4k.json",
+      "urlv": [
+        "http://xhztv.top/4k.json"
+      ]
+    },
+    {
+      "name": "凯速备用（备）",
+      "url": "https://6800.kstore.vip/fish.json",
+      "urlv": [
+        "https://6800.kstore.vip/fish.json"
+      ]
+    },
+    {
+      "name": "道长（备）",
+      "url": "https://pastebin.com/raw/5NHaxyGR",
+      "urlv": [
+        "https://pastebin.com/raw/5NHaxyGR"
+      ]
+    },
+    {
+      "name": "老刘备（备）",
+      "url": "https://raw.liucn.cc/box/m.json",
+      "urlv": [
+        "https://raw.liucn.cc/box/m.json"
+      ]
+    },
+    {
+      "name": "运输车多仓",
+      "url": "https://weixine.net/api.json",
+      "urlv": [
+        "https://weixine.net/api.json"
+      ]
+    },
+    {
+      "name": "毒盒多仓",
+      "url": "https://tv.youdu.fan:666",
+      "urlv": [
+        "https://tv.youdu.fan:666"
+      ]
+    },
+    {
+      "name": "无邪多仓",
+      "url": "https://gh-proxy.com/https://raw.githubusercontent.com/wxrjck/-YSC-/refs/heads/main/wx.json",
+      "urlv": [
+        "https://gh-proxy.com/https://raw.githubusercontent.com/wxrjck/-YSC-/refs/heads/main/wx.json"
+      ]
+    }
+  ],
+  "lives": [
+    {
+      "name": "运输车直播",
+      "type": 1,
+      "url": "https://cf.weixine.net/api.json"
+    },
+    {
+      "name": "天微直播",
+      "type": 1,
+      "url": "http://tvkj.top/tvlive.txt"
+    },
+    {
+      "name": "妖火直播",
+      "type": 1,
+      "url": "https://raw.gitmirror.com/XiaoZhang5656/xiaozhang-5656.github.io/main/iptv-live.txt"
+    }
+  ],
+  "ext": {
+    "version": "1.0",
+    "updated": "2026-08-25T02:45:16Z",
+    "description": "自建影视仓聚合片源，多仓+自动健康巡检，防止单点失效"
+  }
+}
