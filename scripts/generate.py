@@ -66,7 +66,7 @@ WORKERS = 20
 DEFAULT_SOURCES = {
     # 公开维护的单仓线路（官方/知名维护者，长期更新，含国内外影视+4K）
     "lines": [
-        {"name": "饭太硬",   "url": "http://www.饭太硬.com/tv",  "tags": ["点播", "4K"], "priority": 1},
+        {"name": "饭太硬",   "url": "http://fty.888484.xyz/tv",  "tags": ["点播", "4K"], "priority": 1},
         {"name": "肥猫",     "url": "http://肥猫.com/",          "tags": ["点播", "聚合"], "priority": 1},
         {"name": "摸鱼4K",   "url": "http://我不是.摸鱼儿.top",   "tags": ["4K", "蓝光"], "priority": 1},
         {"name": "俊佬",     "url": "http://home.jundie.top:81/top98.json", "tags": ["点播"], "priority": 2},
@@ -79,6 +79,7 @@ DEFAULT_SOURCES = {
         {"name": "凯速备用", "url": "https://6800.kstore.vip/fish.json", "tags": ["备用"], "priority": 5},
         {"name": "道长",     "url": "https://pastebin.com/raw/5NHaxyGR", "tags": ["备用"], "priority": 5},
         {"name": "老刘备",   "url": "https://raw.liucn.cc/box/m.json", "tags": ["备用", "广告"], "priority": 5},
+        {"name": "讴歌",     "url": "http://tv.nxog.top/m", "tags": ["点播", "4K"], "priority": 1},
     ],
     # 多仓（影视仓"仓库管理"里再套一层，选填）
     "warehouses": [
