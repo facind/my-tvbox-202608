@@ -40,7 +40,7 @@ lines:
   - { name: 道长,     url: "https://pastebin.com/raw/5NHaxyGR",         tags: [备用],          priority: 5, stable: high }
   - { name: 老刘备,   url: "https://raw.liucn.cc/box/m.json",           tags: [备用, 广告],    priority: 5, stable: high }
   - { name: 讴歌,   url: "http://tv.nxog.top/m",                       tags: [备用, 广告],    priority: 4, stable: high }
-
+  - { name: 饭太硬,   url: "http://fty.888484.xyz/tv",              tags: [点播, 4K],     priority: 1, stable: high }
 # =========================================================
 # 多仓（仓库管理里再套一层，自动展开更多线路）
 # 这些"多仓 JSON"内部本身就列出了几十条单仓——是"搜索结果变多"的最大来源。
