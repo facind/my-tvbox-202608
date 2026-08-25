@@ -15,7 +15,7 @@
 # =========================================================
 lines:
   # ---- 知名维护者，长期更新（国内外影视 + 4K）[稳定主用] ----
-  - { name: 饭太硬,   url: "http://fty.888484.xyz/tv",              tags: [点播, 4K],     priority: 1, stable: high }
+  - { name: 饭太硬,   url: "http://fty.888484.xyz/",              tags: [点播, 4K],     priority: 1, stable: high }
   - { name: 肥猫,     url: "http://feicat.com/",                      tags: [点播, 聚合],   priority: 1, stable: high }
   - { name: 摸鱼4K,   url: "http://我不是.摸鱼儿.top",                 tags: [4K, 蓝光],     priority: 1, stable: high }
   - { name: 俊佬,     url: "http://home.jundie.top:81/top98.json",     tags: [点播],          priority: 2, stable: high }
