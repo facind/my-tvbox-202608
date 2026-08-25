@@ -1,15 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-影视仓 / TVBox 自建聚合片源 生成器（v3 - UA 模拟 + 二次探测）
+影视仓 / TVBox 自建聚合片源 生成器（v4 - 输出 TVBox 标准单文件）
 ==================================================================
-相较 v2 的改进：
-  1) 请求头完整模拟 TVBox / FongMi 客户端（含 X-Requested-With 包名），
-     避免被源站按 UA 区分返回 HTML；
-  2) 对判定为 NAV（导航页/存活页）的源自动做"播放器模式二次探测"，
-     若二次请求返回合法 TVBox JSON -> 升级为 VALID 并生成独立单仓；
-  3) 支持 sources.yaml 单条加 `skip_check: true` 强制保留；
-  4) 抑制 urllib3 InsecureRequestWarning（本地 jar 自检 127.0.0.1 场景）。
+相较 v3 的核心改动：
+  ★ index.json 现在直接输出 TVBox 标准规范格式（扁平单配置），
+    可被任意 TVBox / 影视仓 客户端「配置地址」直接解析：
+        {
+          "sites":   [ {key, name, type, api, ...}, ... ],   # 全部线路展平
+          "parses":  [ ... ],
+          "spider":  "...",
+          "lives":   [ ... ]
+        }
+    不再输出旧版的 {urls:[...]} 多仓清单格式（旧格式客户端不递归、易整体解析失败）。
+
+  ★ 内容全部保留、一个不剔除：
+      - 每个 line（valid + nav 全部进）都展成 sites 里的独立条目；
+      - 主链 url + 备用链 urlv 各自成一条（key 加后缀区分）；
+      - 本身是"多仓链接"（返回含 urls/storeHouse 的 JSON）的条目，
+        会递归展开其内部子站点，展开失败则保留入口条目本身；
+      - 无法拉取/非 JSON 的条目也保留为 site（客户端点进去该源无内容，
+        但不会导致整个配置崩溃）。
+
+  其余逻辑（UA 模拟、三档健康检查、二次探测、公开站点吸收、备份、
+  lines/、jar/）与 v3 完全一致，未做删减。
 """
 import json, os, sys, time, warnings, logging, argparse, re
 from datetime import datetime
@@ -187,7 +201,7 @@ def build_search_sites(all_search_sites):
 
 
 # =========================================================
-# 4. 三档健康检查 + 二次探测（核心）
+# 4. 三档健康检查 + 二次探测（核心，与 v3 一致）
 # =========================================================
 def _is_dead_page(text):
     lower = text[:3000].lower()
@@ -305,7 +319,7 @@ def health_check(pool):
 
 
 # =========================================================
-# 5. 生成单仓 line json（仅 valid 类）
+# 5. 生成单仓 line json（仅 valid 类，保留与 v3 一致）
 # =========================================================
 PAN_PARSES = [
     {"name": "百度网盘", "type": 18, "url": "https://your-parse.example.com/?url=", "ext": {"flag": "baidu"}},
@@ -357,27 +371,229 @@ def write_lines(valid_lines, lives, search_sites=None):
 
 
 # =========================================================
-# 6. 生成多仓 index.json（valid + nav 全部进 urls）
+# 6. 【核心改动】生成 TVBox 标准单文件 index.json
 # =========================================================
-def build_index(valid_lines, nav_lines, warehouses, lives):
-    urls = []
-    all_alive = valid_lines + nav_lines
-    all_alive.sort(key=lambda x: x.get("priority", 9))
+def _safe_key(s):
+    """
+    把任意字符串（含中文）规整成合法的 site key：
+      - 保留字母数字下划线；
+      - 中文等多字节字符用 unicode 码点转成 _uXXXX，保证唯一可追溯；
+      - 空结果兜底为 'site'。
+    例：'饭太硬' -> '饭太硬'（字母数字保留，中文保留）-> 为兼容 TVBox 仅取 ascii 部分，
+        中文兜底转 hex，最终如 'u9965u592a' 这类稳定 key。
+    """
+    s = str(s).strip()
+    if not s:
+        return "site"
+    # 优先保留 ascii 字母数字，非 ascii 部分用其 utf-16 码点拼成稳定字符串
+    out = []
+    for ch in s:
+        if re.match(r"[a-z0-9_-]", ch, re.I):
+            out.append(ch.lower())
+        elif ord(ch) > 127:
+            out.append("_u%x" % ord(ch))
+        else:
+            out.append("_")
+    key = re.sub(r"_+", "_", "".join(out)).strip("_")
+    return key or "site"
 
-    for line in all_alive:
-        priority = line.get("priority", 9)
-        label = "主" if priority <= 3 else "备"
-        urls.append({"name": f"{line['name']}（{label}）", "url": line["url"], "urlv": [line["url"]]})
 
+def _fetch_remote_config(url):
+    """尝试拉取一个 url，若返回 TVBox 风格配置 dict 则返回，否则 None"""
+    try:
+        r = requests.get(url, timeout=TIMEOUT, headers=HEADERS, allow_redirects=True, verify=False)
+        if r.status_code == 200:
+            j = r.json()
+            if isinstance(j, dict) and ("sites" in j or "urls" in j or "storeHouse" in j):
+                return j
+    except Exception:
+        pass
+    return None
+
+
+def _expand_warehouse(url, name, seen, sites_out, depth=0):
+    """
+    递归展开一个"多仓链接"：
+      - 若该 url 返回含 sites 的标准配置 -> 直接把 sites 展平加入；
+      - 若返回含 urls/storeHouse 的多仓清单 -> 遍历其每个子 url 递归（depth 限 1 层，防失控）；
+      - 拉取失败 / 非 JSON -> 返回 False，由调用方保留入口条目本身。
+    seen: 已加入的 site key 集合（去重）。
+    """
+    cfg = _fetch_remote_config(url)
+    if not cfg:
+        return False
+
+    # 情况 A：本身就是标准单仓（有 sites）
+    if "sites" in cfg and isinstance(cfg["sites"], list):
+        added = 0
+        for s in cfg["sites"]:
+            if not isinstance(s, dict):
+                continue
+            key = s.get("key") or s.get("api") or s.get("name")
+            if not key:
+                continue
+            key = _safe_key(key)
+            # 防同名：追加序号
+            base_key = key
+            n = 1
+            while key in seen:
+                key = f"{base_key}_{n}"
+                n += 1
+            seen.add(key)
+            site = dict(s)
+            site["key"] = key
+            sites_out.append(site)
+            added += 1
+        log.info("     ↳ 展开 [%s] 获得 %d 个站点", name, added)
+        return True
+
+    # 情况 B：是多仓清单（urls / storeHouse），递归一层
+    if depth < 1:
+        sub_list = cfg.get("urls") or cfg.get("storeHouse") or []
+        ok_any = False
+        for u in sub_list:
+            sub_url = u.get("url") if isinstance(u, dict) else u
+            sub_name = u.get("name", sub_url) if isinstance(u, dict) else sub_url
+            if not sub_url:
+                continue
+            if _expand_warehouse(sub_url, sub_name, seen, sites_out, depth + 1):
+                ok_any = True
+        if ok_any:
+            return True
+    return False
+
+
+def _line_to_sites(line, idx, seen, sites_out, parses_out, spider_holder):
+    """
+    把一个 line 条目（valid 或 nav）展成一条/多条 site，加入 sites_out。
+      - 主链 url 作为主 site；
+      - urlv 里每条备用链也各成一条（key 加 _v1/_v2 区分）；
+      - 若 url 本身是多仓链接且能递归展开 -> 展开后并入 sites_out，
+        同时保留主入口 site 指向该多仓 url，保证"一个不丢"。
+    不剔除任何条目：拉不到/非 JSON 的也保留为 site 条目。
+    """
+    name = line["name"]
+    main_url = line["url"]
+    backups = line.get("urlv") or []
+
+    # 先尝试当作"多仓链接"递归展开（展开成功则内部站点全部并入）
+    expanded = False
+    if main_url:
+        # 用一个临时 list 试探，避免展开失败污染 seen
+        tmp_seen = set(seen)
+        tmp_sites = []
+        if _expand_warehouse(main_url, name, tmp_seen, tmp_sites, depth=0):
+            seen.update(tmp_seen)
+            sites_out.extend(tmp_sites)
+            expanded = True
+
+    # 组装主链 + 备用链条目（即使展开了也保留入口，确保不丢）
+    all_api = [(main_url, "")] + [(u, f"_v{i+1}") for i, u in enumerate(backups) if u and u != main_url]
+    for api_url, suffix in all_api:
+        if not api_url:
+            continue
+        base_key = _safe_key(name)
+        key = f"{base_key}{suffix}"
+        n = 1
+        while key in seen:
+            key = f"{base_key}{suffix}_{n}"
+            n += 1
+        seen.add(key)
+        site = {
+            "key": key,
+            "name": name if not suffix else f"{name}（备用{suffix.strip('_v')}）",
+            "type": 3,
+            "api": api_url,
+            "searchable": 1,
+            "quickSearch": 1,
+            "filterable": 1,
+        }
+        sites_out.append(site)
+
+    # 若该 line 自带 parses（来自 line 自身配置），收集（不去重，全保留）
+    if isinstance(line.get("parses"), list):
+        parses_out.extend(line["parses"])
+
+
+def build_index(valid_lines, nav_lines, warehouses, lives, normalized_search, dead_lines=None):
+    """
+    生成 TVBox 标准规范配置（扁平单文件）：
+        {
+          "sites":  [...全部线路展平后的站点，一个不丢...],
+          "parses": [...],
+          "spider": "...",
+          "lives":  [...]
+        }
+    注意：valid / nav / dead 全部展平进 sites，一个都不剔除——
+    拉不到/非 JSON 的条目至少保留其入口 site，避免"整体解析失败"。
+    """
+    sites = []
+    parses = []
+    spider = ""
+    seen = set()
+
+    # 1) 处理 lines（valid + nav + dead 全部展平，一个不剔除）
+    all_lines = valid_lines + nav_lines + (dead_lines or [])
+    all_lines.sort(key=lambda x: x.get("priority", 9))
+    for idx, line in enumerate(all_lines, 1):
+        _line_to_sites(line, idx, seen, sites, parses, None)
+
+    # 2) 处理多仓 warehouses：当作"多仓链接"尝试递归展开内部 sites
     for wh in warehouses:
-        urls.append({"name": wh["name"], "url": wh["url"], "urlv": [wh["url"]]})
+        name = wh.get("name", "多仓")
+        main_url = wh.get("url")
+        backups = wh.get("urlv") or []
+        # 先尝试递归展开
+        tmp_seen = set(seen)
+        tmp_sites = []
+        expanded = False
+        if main_url and _expand_warehouse(main_url, name, tmp_seen, tmp_sites, depth=0):
+            seen.update(tmp_seen)
+            sites.extend(tmp_sites)
+            expanded = True
+        # 备用链/入口也保留
+        all_api = [(main_url, "")] + [(u, f"_v{i+1}") for i, u in enumerate(backups) if u and u != main_url]
+        for api_url, suffix in all_api:
+            if not api_url:
+                continue
+            base_key = _safe_key(name)
+            key = f"{base_key}{suffix}"
+            n = 1
+            while key in seen:
+                key = f"{base_key}{suffix}_{n}"
+                n += 1
+            seen.add(key)
+            sites.append({
+                "key": key,
+                "name": name if not suffix else f"{name}（备用{suffix.strip('_v')}）",
+                "type": 3,
+                "api": api_url,
+                "searchable": 1,
+                "quickSearch": 1,
+                "filterable": 1,
+            })
 
-    return {
-        "urls": urls,
+    # 3) 若启用公开站点吸收，把规范化后的搜索站点并入 sites 末尾
+    for s in normalized_search:
+        key = s.get("key")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        sites.append(dict(s))
+
+    # 4) 组装最终标准配置
+    cfg = {
+        "sites": sites,
+        "parses": parses,
+        "spider": spider,
         "lives": [{"name": lv["name"], "type": 1, "url": lv["url"]} for lv in lives],
-        "ext": {"version": "1.0", "updated": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "description": "自建影视仓聚合片源，多仓+自动健康巡检，防止单点失效"},
+        "ext": {
+            "version": "2.0",
+            "updated": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "description": "自建影视仓聚合片源（TVBox 标准单文件，可直接填入客户端配置地址）",
+        },
     }
+    return cfg
 
 
 def write_spider_placeholder():
@@ -449,22 +665,27 @@ def main():
     written = write_lines(valid, lives, normalized_search)
     log.info("生成 %d 个单仓文件（valid 类），各并联 %d 个搜索站点", len(written), len(normalized_search))
 
-    index = build_index(valid, nav, sources.get("warehouses", []), lives)
+    # ★ 核心：生成 TVBox 标准单文件 index.json（扁平 sites，全部保留，含 dead）
+    index = build_index(valid, nav, sources.get("warehouses", []), lives, normalized_search, dead_lines=dead)
     with open(OUT_INDEX, "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=2)
-    log.info("生成 index.json，共 %d 条线路入口（%d valid + %d nav + %d 多仓）",
-             len(index["urls"]), len(valid), len(nav), len(sources.get("warehouses", [])))
+    log.info("生成 TVBox 标准 index.json：共 %d 个站点（%d valid + %d nav + %d dead保留 + %d 多仓展开 + %d 搜索站）",
+             len(index["sites"]), len(valid), len(nav), len(dead),
+             len(sources.get("warehouses", [])), len(normalized_search))
 
     write_spider_placeholder()
 
-    print("\n===== 生成完成 =====")
+    print("\n===== 生成完成（TVBox 标准单文件）=====")
     print(f"  ✅ VALID（生成单仓）: {len(valid)} 条")
-    print(f"  ⚠️  NAV（直接进index）: {len(nav)} 条")
-    print(f"  ❌ DEAD（已剔除）:     {len(dead)} 条")
-    print(f"  并联搜索站点：{len(normalized_search)} 个")
-    print(f"  多仓入口：{OUT_INDEX}")
+    print(f"  ⚠️  NAV（展平进 sites）: {len(nav)} 条")
+    print(f"  ❌ DEAD（入口仍保留进 sites，不剔除）: {len(dead)} 条")
+    print(f"  📦 多仓入口：{len(sources.get('warehouses', []))} 个（递归展开内部站点）")
+    print(f"  🔍 并联搜索站点：{len(normalized_search)} 个")
+    print(f"  📄 最终 sites 总数：{len(index['sites'])} 个")
+    print(f"  📍 输出文件：{OUT_INDEX}")
+    print("  —— 该 index.json 可直接填入 TVBox / 影视仓「配置地址」使用 ——")
     if dead:
-        print("  被剔除的线路：")
+        print("  （以下线路健康检查失败，未展平为站点，但配置仍可正常加载）")
         for d in dead:
             print(f"    - {d['name']:12s} {d.get('_reason')}")
 
