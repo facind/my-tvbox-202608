@@ -13,7 +13,7 @@ on:
     - cron: "0 6 */3 * *"
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,34 +30,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python: '3.11'
+          python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install deps
         run: pip install pyyaml requests
 
-      - name: Generate index & lines
+      - name: Generate
         run: python3 scripts/generate.py
-        env:
-          ALIYUN_REFRESH_TOKEN: ${{ secrets.ALIYUN_REFRESH_TOKEN }}
-          BAIDU_COOKIE: ${{ secrets.BAIDU_COOKIE }}
-          QUARK_COOKIE: ${{ secrets.QUARK_COOKIE }}
-          UC_COOKIE: ${{ secrets.UC_COOKIE }}
 
-      - name: Validate output
+      - name: Validate
         run: python3 scripts/validate.py
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+      - name: Deploy to Pages
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: .
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
