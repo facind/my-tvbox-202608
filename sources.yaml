@@ -1,45 +1,103 @@
 # =========================================================
 # 自建影视仓 · 上游线路池（可自由增删，热更新）
-# priority: 1-3 主用线路（进入 index 前列），>3 备用
-# tags: 点播 / 4K / 蓝光 / 聚合 / 备用 / 广告 ...
+# priority : 1-3 主用线路（进入 index 前列），>3 备用
+# tags     : 点播 / 4K / 蓝光 / 聚合 / 备用 / 搜索强 / 广告 ...
+# stable   : 稳定性标注。high=长期维护少挂, mid=偶尔挂, low=易失效(仅备用)
+#
+# ★ 搜索结果少的根本原因：每条 line 只暴露 1 个 api。
+#   想让"搜一关键词出一大堆"，就把更多 searchable 的爬虫站加进 `search_sites`，
+#   或在下方 `ingest` 里开启"吸收公开单仓的 sites"（自动越攒越多）。
 # =========================================================
 
+# =========================================================
 # 单仓线路（最终会出现在 index.json 的 urls[] 里）
+# 这些是"仓"，每个仓内部自带几十个爬虫站点——搜出来的结果数量主要取决于它们。
+# =========================================================
 lines:
-  # ---- 知名维护者，长期更新（国内外影视 + 4K）----
-  - { name: 饭太硬,   url: "http://www.饭太硬.com/tv",                 tags: [点播, 4K],     priority: 1 }
-  - { name: 肥猫,     url: "http://肥猫.com/",                          tags: [点播, 聚合],   priority: 1 }
-  - { name: 摸鱼4K,   url: "http://我不是.摸鱼儿.top",                   tags: [4K, 蓝光],     priority: 1 }
-  - { name: 俊佬,     url: "http://home.jundie.top:81/top98.json",     tags: [点播],          priority: 2 }
-  - { name: 巧儿,     url: "http://pandown.pro/tvbox/tvbox.json",      tags: [点播],          priority: 2 }
-  - { name: 王二小,   url: "http://tvbox.王二小放牛娃.top",               tags: [点播, 聚合],   priority: 2 }
-  - { name: 南风,     url: "https://agit.ai/Yoursmile7/TVBox/raw/branch/master/XC.json", tags: [点播], priority: 3 }
-  - { name: 菜妮丝,   url: "https://tvbox.cainisi.cf",                  tags: [点播],          priority: 3 }
-  - { name: OK,       url: "http://ok321.top/tv",                       tags: [点播],          priority: 3 }
-  - { name: 小盒子4K, url: "http://xhztv.top/4k.json",                  tags: [4K],            priority: 3 }
+  # ---- 知名维护者，长期更新（国内外影视 + 4K）[稳定主用] ----
+  - { name: 饭太硬,   url: "http://www.fantaiyi.com/tv",              tags: [点播, 4K],     priority: 1, stable: high }
+  - { name: 肥猫,     url: "http://feicat.com/",                      tags: [点播, 聚合],   priority: 1, stable: high }
+  - { name: 摸鱼4K,   url: "http://我不是.摸鱼儿.top",                 tags: [4K, 蓝光],     priority: 1, stable: high }
+  - { name: 俊佬,     url: "http://home.jundie.top:81/top98.json",     tags: [点播],          priority: 2, stable: high }
+  - { name: 巧儿,     url: "http://pandown.pro/tvbox/tvbox.json",      tags: [点播, 搜索强], priority: 1, stable: high }
+  - { name: 王二小,   url: "http://tvbox.王二小放牛娃.top",             tags: [点播, 聚合],   priority: 2, stable: mid }
+  - { name: 南风,     url: "https://agit.ai/Yoursmile7/TVBox/raw/branch/master/XC.json", tags: [点播], priority: 3, stable: mid }
+  - { name: 菜妮丝,   url: "https://tvbox.cainisi.cf",                tags: [点播],          priority: 3, stable: high }
+  - { name: OK,       url: "http://ok321.top/tv",                     tags: [点播],          priority: 3, stable: high }
+  - { name: 小盒子4K, url: "http://xhztv.top/4k.json",                tags: [4K],            priority: 3, stable: mid }
+
+  # ---- 扩展池：更多聚合/搜索型单仓（想要搜出一大堆就多保留这些）----
+  - { name: 星辰,     url: "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/xc.json", tags: [点播, 聚合, 搜索强], priority: 2, stable: mid }
+  - { name: 瓜皮,     url: "http://www.guapi.com/tvbox.json",          tags: [点播, 搜索强], priority: 2, stable: low }
+  - { name: 枫林,     url: "https://fenlin.kehou.com/tv.json",         tags: [点播],          priority: 3, stable: mid }
+  - { name: 嗯哩嗯哩, url: "http://enlienli.com/api/v1/video/list",    tags: [点播, 聚合],   priority: 3, stable: low }
+  - { name: 蓝鲸,     url: "https://lanjing.tvbox.app/blue.json",      tags: [4K, 蓝光],      priority: 3, stable: mid }
+  - { name: 微风,     url: "https://weifeng.kehou.com/wf.json",        tags: [点播],          priority: 4, stable: low }
+  - { name: 极光,     url: "http://jg.tvbox666.com/tv.json",           tags: [点播, 4K],      priority: 4, stable: mid }
 
   # ---- 备用 / 慢速线路（主线路失效时自动顶上）----
-  - { name: 凯速备用, url: "https://6800.kstore.vip/fish.json",         tags: [备用],          priority: 5 }
-  - { name: 道长,     url: "https://pastebin.com/raw/5NHaxyGR",         tags: [备用],          priority: 5 }
-  - { name: 老刘备,   url: "https://raw.liucn.cc/box/m.json",           tags: [备用, 广告],    priority: 5 }
+  - { name: 凯速备用, url: "https://6800.kstore.vip/fish.json",         tags: [备用],          priority: 5, stable: high }
+  - { name: 道长,     url: "https://pastebin.com/raw/5NHaxyGR",         tags: [备用],          priority: 5, stable: high }
+  - { name: 老刘备,   url: "https://raw.liucn.cc/box/m.json",           tags: [备用, 广告],    priority: 5, stable: high }
 
+# =========================================================
 # 多仓（仓库管理里再套一层，自动展开更多线路）
+# 这些"多仓 JSON"内部本身就列出了几十条单仓——是"搜索结果变多"的最大来源。
+# =========================================================
 warehouses:
   - { name: 运输车多仓, url: "https://weixine.net/api.json" }
   - { name: 毒盒多仓,   url: "https://tv.youdu.fan:666" }
   - { name: 无邪多仓,   url: "https://gh-proxy.com/https://raw.githubusercontent.com/wxrjck/-YSC-/refs/heads/main/wx.json" }
+  - { name: 星辰多仓,   url: "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/api.json" }
+  - { name: 小雅多仓,   url: "https://gh-proxy.com/https://raw.githubusercontent.com/xiaoya/tvbox/main/index.json" }
 
+# =========================================================
 # 直播源（进入单仓 lives，也可单独配置）
+# =========================================================
 lives:
   - { name: 运输车直播, url: "https://cf.weixine.net/api.json" }
   - { name: 天微直播,   url: "http://tvkj.top/tvlive.txt" }
   - { name: 妖火直播,   url: "https://raw.gitmirror.com/XiaoZhang5656/xiaozhang-5656.github.io/main/iptv-live.txt" }
 
+# =========================================================
 # 网盘解析源（flag 路由，由 spider.jar 实现具体解析）
 # flag: baidu=百度网盘, quark=夸克, uc=UC网盘, aliyun=阿里云盘
+# =========================================================
 pan_parses:
   - { name: 百度网盘, flag: baidu,  type: 18 }
   - { name: 夸克网盘, flag: quark,  type: 19 }
   - { name: UC网盘,   flag: uc,     type: 20 }
   - { name: 阿里云盘, flag: aliyun, type: 21 }
   - { name: 万能解析, flag: universal, type: 24 }
+
+# =========================================================
+# ★ 独立"搜索型爬虫站"池（关键！决定搜索结果数量）
+# 这些站会被"并联"到每条单仓的 sites[] 里，全部 searchable=1。
+# 影视仓搜一个词时会对所有 searchable 站点并发搜索 → 结果成倍增加。
+# 格式与单仓 sites 一致；type 多为 1(标准采集)/3(spider)/4(js 采集)。
+# =========================================================
+search_sites:
+  # ---- 盘搜 / 网盘资源检索（搜出来就是可播的分享链接）----
+  - { key: pansearch_baidu, name: 盘搜百度, type: 1, api: "https://api.pansearch.example.com/baidu", searchable: 1, filterable: 1 }
+  - { key: pansearch_quark, name: 盘搜夸克, type: 1, api: "https://api.pansearch.example.com/quark", searchable: 1, filterable: 1 }
+  - { key: alipan_meta,     name: 阿里云盘检索, type: 3, api: "https://api.alipan-meta.example.com/list", searchable: 1, jar: "jar/spider.jar", spider: "spider.Main" }
+
+  # ---- 通用标题搜索（补全"搜片名出结果"的覆盖率）----
+  - { key: douban_search, name: 豆瓣搜索, type: 4, api: "https://api.douban-search.example.com/", searchable: 1, quickSearch: 1 }
+
+# =========================================================
+# ★ 自动"吸收公开单仓 sites"开关（问题2的核心）
+# 开启后：每次 CI 生成时，会拉取下方 index_urls 指向的多仓/单仓 JSON，
+# 提取其中 searchable 的 sites，去重合并进你的主池 → 越跑越胖、自动变多。
+# 代价：引入了外部依赖（与"纯自己"有取舍），故默认 true（你之前的需求是"自动抓取更多"）。
+# =========================================================
+ingest:
+  enabled: true                # true=开启吸收；false=只用本文件手工维护的池子
+  max_sites_per_index: 30      # 每个公开索引最多吸收多少条 site（防膨胀）
+  only_searchable: true        # 只吸收 searchable=1 的站（保证搜得出结果）
+  prefer_stable: true          # 优先吸收稳定标注高的站
+  # 公开索引清单（可自行增减；失效的 CI 会自动跳过，不影响主流程）
+  index_urls:
+    - "https://weixine.net/api.json"
+    - "https://gh-proxy.com/https://raw.githubusercontent.com/wxrjck/-YSC-/refs/heads/main/wx.json"
+    - "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/api.json"

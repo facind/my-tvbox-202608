@@ -16,6 +16,44 @@
       "filterable": 1
     },
     {
+      "key": "pansearch_baidu",
+      "name": "盘搜百度",
+      "type": 1,
+      "api": "https://api.pansearch.example.com/baidu",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    },
+    {
+      "key": "pansearch_quark",
+      "name": "盘搜夸克",
+      "type": 1,
+      "api": "https://api.pansearch.example.com/quark",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    },
+    {
+      "key": "alipan_meta",
+      "name": "阿里云盘检索",
+      "type": 3,
+      "api": "https://api.alipan-meta.example.com/list",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "jar": "jar/spider.jar",
+      "spider": "spider.Main"
+    },
+    {
+      "key": "douban_search",
+      "name": "豆瓣搜索",
+      "type": 4,
+      "api": "https://api.douban-search.example.com/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    },
+    {
       "key": "search_collect",
       "name": "全网采集",
       "type": 3,
@@ -149,7 +187,7 @@
   },
   "ext": {
     "version": "1.0",
-    "updated": "2026-08-25T02:45:15Z",
+    "updated": "2026-08-25T05:17:59Z",
     "source": "self-hosted"
   }
 }

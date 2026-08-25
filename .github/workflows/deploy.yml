@@ -88,6 +88,11 @@ jobs:
           cd jar
           [[ -f test_spider.js ]] && node test_spider.js || echo "跳过 JS 测试"
 
+      - name: 单元测试（ingest 吸收 / search_sites 规范化）
+        run: |
+          cd scripts
+          python3 test_ingest.py
+
       - name: 生成聚合配置（健康检查 + 去重 + 分级）
         id: gen
         run: |

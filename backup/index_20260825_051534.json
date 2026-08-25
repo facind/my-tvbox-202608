@@ -2,16 +2,16 @@
   "urls": [
     {
       "name": "饭太硬（主）",
-      "url": "http://www.fantaiyi.com/tv",
+      "url": "http://www.饭太硬.com/tv",
       "urlv": [
-        "http://www.fantaiyi.com/tv"
+        "http://www.饭太硬.com/tv"
       ]
     },
     {
       "name": "肥猫（主）",
-      "url": "http://feicat.com/",
+      "url": "http://肥猫.com/",
       "urlv": [
-        "http://feicat.com/"
+        "http://肥猫.com/"
       ]
     },
     {
@@ -71,55 +71,6 @@
       ]
     },
     {
-      "name": "星辰（主）",
-      "url": "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/xc.json",
-      "urlv": [
-        "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/xc.json"
-      ]
-    },
-    {
-      "name": "瓜皮（主）",
-      "url": "http://www.guapi.com/tvbox.json",
-      "urlv": [
-        "http://www.guapi.com/tvbox.json"
-      ]
-    },
-    {
-      "name": "枫林（主）",
-      "url": "https://fenlin.kehou.com/tv.json",
-      "urlv": [
-        "https://fenlin.kehou.com/tv.json"
-      ]
-    },
-    {
-      "name": "嗯哩嗯哩（主）",
-      "url": "http://enlienli.com/api/v1/video/list",
-      "urlv": [
-        "http://enlienli.com/api/v1/video/list"
-      ]
-    },
-    {
-      "name": "蓝鲸（主）",
-      "url": "https://lanjing.tvbox.app/blue.json",
-      "urlv": [
-        "https://lanjing.tvbox.app/blue.json"
-      ]
-    },
-    {
-      "name": "微风（备）",
-      "url": "https://weifeng.kehou.com/wf.json",
-      "urlv": [
-        "https://weifeng.kehou.com/wf.json"
-      ]
-    },
-    {
-      "name": "极光（备）",
-      "url": "http://jg.tvbox666.com/tv.json",
-      "urlv": [
-        "http://jg.tvbox666.com/tv.json"
-      ]
-    },
-    {
       "name": "凯速备用（备）",
       "url": "https://6800.kstore.vip/fish.json",
       "urlv": [
@@ -160,20 +111,6 @@
       "urlv": [
         "https://gh-proxy.com/https://raw.githubusercontent.com/wxrjck/-YSC-/refs/heads/main/wx.json"
       ]
-    },
-    {
-      "name": "星辰多仓",
-      "url": "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/api.json",
-      "urlv": [
-        "https://gh-proxy.com/https://raw.githubusercontent.com/xingchen/tvbox/main/api.json"
-      ]
-    },
-    {
-      "name": "小雅多仓",
-      "url": "https://gh-proxy.com/https://raw.githubusercontent.com/xiaoya/tvbox/main/index.json",
-      "urlv": [
-        "https://gh-proxy.com/https://raw.githubusercontent.com/xiaoya/tvbox/main/index.json"
-      ]
     }
   ],
   "lives": [
@@ -195,7 +132,7 @@
   ],
   "ext": {
     "version": "1.0",
-    "updated": "2026-08-25T05:18:00Z",
+    "updated": "2026-08-25T02:45:16Z",
     "description": "自建影视仓聚合片源，多仓+自动健康巡检，防止单点失效"
   }
 }
